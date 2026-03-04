@@ -1103,3 +1103,88 @@ def table_row_advisor(aid: int, wallet_short: str, active: bool, clients: int, f
 ERR_NO_CONTRACT = "Error: --contract or config required"
 ERR_NO_PRIVATE_KEY = "Error: --private-key required"
 ERR_NO_PORTFOLIO_ID = "Error: --portfolio-id required"
+ERR_NO_AMOUNT = "Error: --amount-wei required"
+ERR_NO_ADVISOR_ID = "Error: --advisor-id required"
+ERR_NO_ADDRESS = "Error: --address required"
+ERR_TX_FAILED = "Transaction failed"
+ERR_INVALID_PORTFOLIO_ID = "portfolio_id must be >= 1"
+ERR_INVALID_ADVISOR_ID = "advisor_id must be >= 1"
+
+
+def print_usage_quick() -> None:
+    """Print short usage reminder."""
+    print("Babalon — WizardFinance CLI")
+    print("  config | register-advisor | create-portfolio | deposit | withdraw | close-portfolio")
+    print("  list-advisors | list-portfolios | stats | client-stats | portfolio-info | advisor-info")
+    print("  constants | tier-names | fee-calc | version | demo | interactive")
+
+
+# Contract function names (for reference)
+CONTRACT_FN_REGISTER_ADVISOR = "registerAdvisor"
+CONTRACT_FN_CREATE_PORTFOLIO = "createPortfolio"
+CONTRACT_FN_DEPOSIT = "deposit"
+CONTRACT_FN_WITHDRAW = "withdraw"
+CONTRACT_FN_CLOSE_PORTFOLIO = "closePortfolio"
+CONTRACT_FN_GET_PORTFOLIO = "getPortfolio"
+CONTRACT_FN_GET_ADVISOR = "getAdvisor"
+CONTRACT_FN_GET_GLOBAL_STATS = "getGlobalStats"
+CONTRACT_FN_GET_CLIENT_PORTFOLIO_IDS = "getClientPortfolioIds"
+CONTRACT_FN_GET_PORTFOLIO_BALANCE = "getPortfolioBalance"
+CONTRACT_FN_GET_CLIENT_TIER = "getClientTier"
+CONTRACT_FN_GET_ADVISOR_ID = "getAdvisorId"
+
+
+def contract_function_names() -> List[str]:
+    """Return list of contract function names we use."""
+    return [
+        CONTRACT_FN_REGISTER_ADVISOR,
+        CONTRACT_FN_CREATE_PORTFOLIO,
+        CONTRACT_FN_DEPOSIT,
+        CONTRACT_FN_WITHDRAW,
+        CONTRACT_FN_CLOSE_PORTFOLIO,
+        CONTRACT_FN_GET_PORTFOLIO,
+        CONTRACT_FN_GET_ADVISOR,
+        CONTRACT_FN_GET_GLOBAL_STATS,
+        CONTRACT_FN_GET_CLIENT_PORTFOLIO_IDS,
+        CONTRACT_FN_GET_PORTFOLIO_BALANCE,
+        CONTRACT_FN_GET_CLIENT_TIER,
+        CONTRACT_FN_GET_ADVISOR_ID,
+    ]
+
+
+# Abi method selectors (first 4 bytes of keccak256(signature)) — for reference
+def selector_register_advisor() -> str:
+    """Keccak256('registerAdvisor()')[:4] hex — reference only."""
+    return "0x" + "00" * 4  # placeholder; actual value from contract
+
+
+def selector_deposit() -> str:
+    """Keccak256('deposit(uint256,address,uint256)')[:4] hex — reference only."""
+    return "0x" + "00" * 4  # placeholder
+
+
+# Numeric limits for display
+MAX_DISPLAY_PORTFOLIOS = 100
+MAX_DISPLAY_ADVISORS = 128
+DEFAULT_LIST_LIMIT = 50
+
+
+def clamp_list_limit(limit: Optional[int], max_val: int) -> int:
+    """Return limit clamped to [1, max_val]; default to DEFAULT_LIST_LIMIT."""
+    if limit is None or limit < 1:
+        return min(DEFAULT_LIST_LIMIT, max_val)
+    return min(limit, max_val)
+
+
+# JSON export helpers
+def export_global_stats_to_json(w3, contract, path: Optional[Path] = None) -> str:
+    """Fetch global stats and return JSON string; optionally write to path."""
+    total_dep, total_with, total_fees, adv_count, port_count, paused = contract.functions.getGlobalStats().call()
+    s = format_global_stats_json(total_dep, total_with, total_fees, adv_count, port_count, paused)
+    if path:
+        path.write_text(s, encoding="utf-8")
+    return s
+
+
+def export_portfolios_to_json(w3, contract, limit: int = 50, path: Optional[Path] = None) -> List[str]:
+    """Fetch up to limit portfolios and return list of JSON strings; optionally write array to path."""
