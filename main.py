@@ -508,3 +508,88 @@ def cmd_stats(args: argparse.Namespace) -> int:
         return 1
     return 0
 
+# -----------------------------------------------------------------------------
+# Commands: client-stats
+# -----------------------------------------------------------------------------
+
+def cmd_client_stats(args: argparse.Namespace) -> int:
+    rpc = args.rpc_url or load_config().get("rpc_url", DEFAULT_RPC_URL)
+    contract_addr = args.contract or load_config().get("contract", DEFAULT_CONTRACT)
+    address = getattr(args, "address", None)
+    if not contract_addr or not address:
+        print("Error: --contract and --address required", file=sys.stderr)
+        return 1
+    try:
+        address = validate_address(address)
+        w3 = get_w3(rpc)
+        contract = get_contract(w3, contract_addr)
+        tier = contract.functions.getClientTier(address).call()
+        pids = contract.functions.getClientPortfolioIds(address).call()
+        print("Client:", address)
+        print("Tier:", tier_name(tier))
+        print("Portfolio IDs:", pids)
+        total_dep = total_with = 0
+        for pid in pids:
+            client, _, deposited, withdrawn, _, _ = contract.functions.getPortfolio(pid).call()
+            if client.lower() == address.lower():
+                total_dep += deposited
+                total_with += withdrawn
+        print("Total deposited (client):", format_wei(total_dep))
+        print("Total withdrawn (client):", format_wei(total_with))
+        print("Net:", format_wei(total_dep - total_with))
+    except Exception as e:
+        print("Error:", e, file=sys.stderr)
+        return 1
+    return 0
+
+# -----------------------------------------------------------------------------
+# Commands: portfolio-info, advisor-info
+# -----------------------------------------------------------------------------
+
+def cmd_portfolio_info(args: argparse.Namespace) -> int:
+    rpc = args.rpc_url or load_config().get("rpc_url", DEFAULT_RPC_URL)
+    contract_addr = args.contract or load_config().get("contract", DEFAULT_CONTRACT)
+    portfolio_id = getattr(args, "portfolio_id", None)
+    if not contract_addr or portfolio_id is None:
+        print("Error: --contract and --portfolio-id required", file=sys.stderr)
+        return 1
+    try:
+        portfolio_id = int(portfolio_id)
+        validate_portfolio_id(portfolio_id)
+        w3 = get_w3(rpc)
+        contract = get_contract(w3, contract_addr)
+        client, advisor_id, deposited, withdrawn, created_block, closed = contract.functions.getPortfolio(portfolio_id).call()
+        eth_balance = contract.functions.getPortfolioBalance(portfolio_id, zero_address()).call()
+        print("Portfolio #", portfolio_id)
+        print("  Client:       ", client)
+        print("  Advisor ID:   ", advisor_id)
+        print("  Total deposited:", format_wei(deposited))
+        print("  Total withdrawn:", format_wei(withdrawn))
+        print("  Created block:", created_block)
+        print("  Closed:       ", closed)
+        print("  ETH balance:  ", format_wei(eth_balance))
+    except Exception as e:
+        print("Error:", e, file=sys.stderr)
+        return 1
+    return 0
+
+def cmd_advisor_info(args: argparse.Namespace) -> int:
+    rpc = args.rpc_url or load_config().get("rpc_url", DEFAULT_RPC_URL)
+    contract_addr = args.contract or load_config().get("contract", DEFAULT_CONTRACT)
+    advisor_id = getattr(args, "advisor_id", None)
+    if not contract_addr or advisor_id is None:
+        print("Error: --contract and --advisor-id required", file=sys.stderr)
+        return 1
+    try:
+        advisor_id = int(advisor_id)
+        validate_advisor_id(advisor_id)
+        w3 = get_w3(rpc)
+        contract = get_contract(w3, contract_addr)
+        wallet, active, clients, fees, reg_block = contract.functions.getAdvisor(advisor_id).call()
+        print("Advisor #", advisor_id)
+        print("  Wallet:        ", wallet)
+        print("  Active:        ", active)
+        print("  Total clients: ", clients)
+        print("  Fees earned:   ", format_wei(fees))
+        print("  Registered at block:", reg_block)
+    except Exception as e:
