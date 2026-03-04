@@ -1358,3 +1358,74 @@ def domain_separator_version() -> str:
     return "1"
 
 
+def wizard_finance_typehashes() -> dict:
+    """Return WizardFinance EIP-712 typehash names (for reference)."""
+    return {
+        "WF_AdvisorRegister": "WF_AdvisorRegister(address advisor,uint256 nonce)",
+        "WF_Allocate": "WF_Allocate(uint256 portfolioId,address token,uint256 amount,uint256 nonce)",
+        "WF_PortfolioCreate": "WF_PortfolioCreate(address client,uint256 advisorId,uint256 nonce)",
+    }
+
+
+def babalon_banner() -> str:
+    """Return a short ASCII banner for Babalon."""
+    return "Babalon — WizardFinance CLI client"
+
+
+def babalon_help_link() -> str:
+    """Placeholder for documentation URL."""
+    return "See module docstring for usage."
+
+
+def parse_portfolio_id(s: str) -> int:
+    """Parse portfolio ID from string; raise ValueError if invalid."""
+    n = int(s.strip())
+    validate_portfolio_id(n)
+    return n
+
+
+def parse_advisor_id(s: str) -> int:
+    """Parse advisor ID from string; raise ValueError if invalid."""
+    n = int(s.strip())
+    validate_advisor_id(n)
+    return n
+
+
+def ether_string_to_wei(s: str) -> int:
+    """Parse ether amount string (e.g. '1.5') to wei."""
+    return ether_to_wei(float(s.strip()))
+
+
+def wei_to_ether_string(wei: int, precision: int = 6) -> str:
+    """Format wei as ether string with given decimal precision."""
+    return f"{wei_to_ether(wei):.{precision}f}"
+
+
+def bps_to_percent(bps: int) -> float:
+    """Convert basis points to percent (e.g. 200 -> 2.0)."""
+    return (bps / WF_BPS_REF) * 100
+
+
+def percent_to_bps(percent: float) -> int:
+    """Convert percent to basis points (e.g. 2.5 -> 250)."""
+    return int((percent / 100) * WF_BPS_REF)
+
+
+def net_deposits_global_from_stats(total_dep: int, total_with: int) -> int:
+    """Return net deposits (total_dep - total_with) or 0 if negative."""
+    return max(0, total_dep - total_with)
+
+
+def is_valid_eth_address(s: str) -> bool:
+    """Return True if string looks like a valid 40-hex address."""
+    s = s.strip().replace("0x", "")
+    if len(s) != 40:
+        return False
+    try:
+        int(s, 16)
+        return True
+    except ValueError:
+        return False
+
+
+# End of extended helpers and reference
