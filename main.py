@@ -763,3 +763,88 @@ if __name__ == "__main__":
 # =============================================================================
 
 def get_tier_from_net_wei(net_wei: int) -> int:
+    """Return tier (0-4) from client net deposit total in wei."""
+    if net_wei >= BABALON_TIER_MIN_WEI.get(4, 0):
+        return 4
+    if net_wei >= BABALON_TIER_MIN_WEI.get(3, 0):
+        return 3
+    if net_wei >= BABALON_TIER_MIN_WEI.get(2, 0):
+        return 2
+    if net_wei >= BABALON_TIER_MIN_WEI.get(1, 0):
+        return 1
+    return 0
+
+
+def format_tier_with_min(tier: int) -> str:
+    """Return tier name and minimum net deposit for that tier."""
+    name = tier_name(tier)
+    min_wei = BABALON_TIER_MIN_WEI.get(tier, 0)
+    if min_wei == 0:
+        return f"{name} (no minimum)"
+    return f"{name} (min {format_wei(min_wei)})"
+
+
+def validate_deposit_amount(amount_wei: int, min_wei: int, max_wei: int) -> None:
+    """Raise ValueError if amount is outside [min_wei, max_wei]."""
+    if amount_wei < min_wei:
+        raise ValueError(f"Amount below minimum: {format_wei(amount_wei)} < {format_wei(min_wei)}")
+    if amount_wei > max_wei:
+        raise ValueError(f"Amount above maximum: {format_wei(amount_wei)} > {format_wei(max_wei)}")
+
+
+def fetch_min_deposit_from_contract(w3, contract) -> int:
+    """Call contract WF_MIN_DEPOSIT()."""
+    return contract.functions.WF_MIN_DEPOSIT().call()
+
+
+def fetch_max_deposit_from_contract(w3, contract) -> int:
+    """Call contract WF_MAX_DEPOSIT_SINGLE()."""
+    return contract.functions.WF_MAX_DEPOSIT_SINGLE().call()
+
+
+def fetch_advisor_fee_bps_from_contract(w3, contract) -> int:
+    """Call contract WF_ADVISOR_FEE_BPS()."""
+    return contract.functions.WF_ADVISOR_FEE_BPS().call()
+
+
+def fetch_platform_fee_bps_from_contract(w3, contract) -> int:
+    """Call contract WF_PLATFORM_FEE_BPS()."""
+    return contract.functions.WF_PLATFORM_FEE_BPS().call()
+
+
+def fetch_paused_from_contract(w3, contract) -> bool:
+    """Call contract wfPaused()."""
+    return contract.functions.wfPaused().call()
+
+
+def batch_get_portfolios(w3, contract, portfolio_ids: List[int]) -> List[Tuple]:
+    """Return list of getPortfolio results for each id."""
+    results = []
+    for pid in portfolio_ids:
+        try:
+            r = contract.functions.getPortfolio(pid).call()
+            results.append((pid, r))
+        except Exception:
+            results.append((pid, None))
+    return results
+
+
+def batch_get_advisors(w3, contract, advisor_ids: List[int]) -> List[Tuple]:
+    """Return list of getAdvisor results for each id."""
+    results = []
+    for aid in advisor_ids:
+        try:
+            r = contract.functions.getAdvisor(aid).call()
+            results.append((aid, r))
+        except Exception:
+            results.append((aid, None))
+    return results
+
+
+def format_global_stats_json(total_dep: int, total_with: int, total_fees: int, advisors: int, portfolios: int, paused: bool) -> str:
+    """Return JSON string of global stats."""
+    return json.dumps({
+        "total_deposits_wei": total_dep,
+        "total_deposits_eth": wei_to_ether(total_dep),
+        "total_withdrawn_wei": total_with,
+        "total_withdrawn_eth": wei_to_ether(total_with),
