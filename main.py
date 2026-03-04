@@ -168,3 +168,88 @@ def compute_total_fee(amount_wei: int) -> int:
 
 def compute_net_after_fees(amount_wei: int) -> int:
     return amount_wei - compute_total_fee(amount_wei)
+
+def fee_breakdown(amount_wei: int) -> Tuple[int, int, int]:
+    adv = compute_advisor_fee(amount_wei)
+    plat = compute_platform_fee(amount_wei)
+    net = amount_wei - adv - plat
+    return (adv, plat, net)
+
+# -----------------------------------------------------------------------------
+# Validation
+# -----------------------------------------------------------------------------
+
+def parse_wei(s: str) -> int:
+    s = s.strip()
+    if s.startswith("0x"):
+        return int(s, 16)
+    return int(s)
+
+def validate_address(s: str) -> str:
+    s = s.strip()
+    if not s.startswith("0x"):
+        s = "0x" + s
+    if len(s) != 42:
+        raise ValueError("Address must be 40 hex chars after 0x")
+    return normalize_address(s)
+
+def validate_portfolio_id(n: int) -> None:
+    if n < 1:
+        raise ValueError("portfolio_id must be >= 1")
+
+def validate_advisor_id(n: int) -> None:
+    if n < 1:
+        raise ValueError("advisor_id must be >= 1")
+
+# -----------------------------------------------------------------------------
+# Commands: config
+# -----------------------------------------------------------------------------
+
+def cmd_config(args: argparse.Namespace) -> int:
+    cfg = load_config()
+    rpc = getattr(args, "rpc_url", None) or cfg.get("rpc_url", DEFAULT_RPC_URL)
+    contract = getattr(args, "contract", None) or cfg.get("contract", DEFAULT_CONTRACT)
+    print("RPC URL:", rpc)
+    print("Contract:", contract or "(not set)")
+    if getattr(args, "save", False):
+        save_config(rpc, contract)
+        print("Saved to", config_path())
+    return 0
+
+# -----------------------------------------------------------------------------
+# Commands: register-advisor
+# -----------------------------------------------------------------------------
+
+def cmd_register_advisor(args: argparse.Namespace) -> int:
+    rpc = args.rpc_url or load_config().get("rpc_url", DEFAULT_RPC_URL)
+    contract_addr = args.contract or load_config().get("contract", DEFAULT_CONTRACT)
+    if not contract_addr:
+        print("Error: --contract or config required", file=sys.stderr)
+        return 1
+    pk = getattr(args, "private_key", None)
+    if not pk:
+        print("Error: --private-key required", file=sys.stderr)
+        return 1
+    try:
+        w3 = get_w3(rpc)
+        acct = get_signer_account(w3, pk)
+        contract = get_contract(w3, contract_addr)
+        tx = contract.functions.registerAdvisor().build_transaction({
+            "from": acct.address,
+            "gas": 200000,
+        })
+        tx["gas"] = w3.eth.estimate_gas(tx)
+        signed = acct.sign_transaction(tx)
+        tx_hash = w3.eth.send_raw_transaction(signed.raw_transaction)
+        receipt = w3.eth.wait_for_transaction_receipt(tx_hash)
+        if receipt["status"] != 1:
+            print("Transaction failed", file=sys.stderr)
+            return 1
+        advisor_id = contract.functions.getAdvisorId(acct.address).call()
+        print("Advisor registered. Advisor ID:", advisor_id)
+    except Exception as e:
+        print("Error:", e, file=sys.stderr)
+        return 1
+    return 0
+
+# -----------------------------------------------------------------------------
