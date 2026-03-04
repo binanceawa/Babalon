@@ -1188,3 +1188,88 @@ def export_global_stats_to_json(w3, contract, path: Optional[Path] = None) -> st
 
 def export_portfolios_to_json(w3, contract, limit: int = 50, path: Optional[Path] = None) -> List[str]:
     """Fetch up to limit portfolios and return list of JSON strings; optionally write array to path."""
+    count = contract.functions.portfolioCount().call()
+    out = []
+    for i in range(1, min(count + 1, limit + 1)):
+        client, advisor_id, deposited, withdrawn, created_block, closed = contract.functions.getPortfolio(i).call()
+        out.append(format_portfolio_json(i, client, advisor_id, deposited, withdrawn, created_block, closed))
+    if path:
+        path.write_text("[\n" + ",\n".join(out) + "\n]", encoding="utf-8")
+    return out
+
+
+def export_advisors_to_json(w3, contract, limit: int = 128, path: Optional[Path] = None) -> List[str]:
+    """Fetch up to limit advisors and return list of JSON strings; optionally write array to path."""
+    count = contract.functions.advisorCount().call()
+    out = []
+    for i in range(1, min(count + 1, limit + 1)):
+        wallet, active, clients, fees, reg_block = contract.functions.getAdvisor(i).call()
+        out.append(format_advisor_json(i, wallet, active, clients, fees, reg_block))
+    if path:
+        path.write_text("[\n" + ",\n".join(out) + "\n]", encoding="utf-8")
+    return out
+
+
+# Short checks for CLI
+def can_register_advisor(w3, contract) -> Tuple[bool, str]:
+    """Check if new advisor can register (under cap, not paused). Returns (ok, message)."""
+    try:
+        if contract.functions.wfPaused().call():
+            return False, "Contract is paused"
+        count = contract.functions.advisorCount().call()
+        if count >= max_advisors_cap():
+            return False, "Max advisors reached"
+        return True, "OK"
+    except Exception as e:
+        return False, str(e)
+
+
+def can_create_portfolio(w3, contract, address: str, advisor_id: int) -> Tuple[bool, str]:
+    """Check if client can create portfolio (advisor active, under portfolio cap). Returns (ok, message)."""
+    try:
+        if contract.functions.wfPaused().call():
+            return False, "Contract is paused"
+        wallet, active, _, _, _ = contract.functions.getAdvisor(advisor_id).call()
+        if not active:
+            return False, "Advisor is inactive"
+        pids = contract.functions.getClientPortfolioIds(address).call()
+        if len(pids) >= max_portfolios_per_client_cap():
+            return False, "Max portfolios per client reached"
+        return True, "OK"
+    except Exception as e:
+        return False, str(e)
+
+
+# Version and build info
+def full_version_string() -> str:
+    """Return app name and version."""
+    return f"{APP_NAME} {BABALON_VERSION}"
+
+
+def contract_name_string() -> str:
+    """Return contract name."""
+    return CONTRACT_NAME
+
+
+def supported_commands() -> List[str]:
+    """Return list of supported CLI commands."""
+    return [
+        "config", "register-advisor", "create-portfolio", "deposit", "withdraw", "close-portfolio",
+        "list-advisors", "list-portfolios", "stats", "client-stats", "portfolio-info", "advisor-info",
+        "constants", "tier-names", "fee-calc", "version", "demo", "interactive",
+    ]
+
+
+# Hex and address formatting
+def short_address(addr: str, prefix_len: int = 6, suffix_len: int = 4) -> str:
+    """Return shortened address like 0x1234...5678."""
+    if not addr or len(addr) < prefix_len + suffix_len + 2:
+        return addr
+    addr = addr.replace("0x", "")
+    if len(addr) < 40:
+        return "0x" + addr
+    return "0x" + addr[:prefix_len] + "..." + addr[-suffix_len:]
+
+
+def format_tx_hash(tx_hash) -> str:
+    """Format transaction hash for display (hex string)."""
