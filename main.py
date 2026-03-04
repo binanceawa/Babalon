@@ -338,3 +338,88 @@ def cmd_deposit(args: argparse.Namespace) -> int:
         print("Deposit successful. Tx:", tx_hash.hex())
     except Exception as e:
         print("Error:", e, file=sys.stderr)
+        return 1
+    return 0
+
+# -----------------------------------------------------------------------------
+# Commands: withdraw
+# -----------------------------------------------------------------------------
+
+def cmd_withdraw(args: argparse.Namespace) -> int:
+    rpc = args.rpc_url or load_config().get("rpc_url", DEFAULT_RPC_URL)
+    contract_addr = args.contract or load_config().get("contract", DEFAULT_CONTRACT)
+    if not contract_addr:
+        print("Error: --contract or config required", file=sys.stderr)
+        return 1
+    pk = getattr(args, "private_key", None)
+    if not pk:
+        print("Error: --private-key required", file=sys.stderr)
+        return 1
+    portfolio_id = getattr(args, "portfolio_id", None)
+    amount_wei = getattr(args, "amount_wei", None)
+    if portfolio_id is None or amount_wei is None:
+        print("Error: --portfolio-id and --amount-wei required", file=sys.stderr)
+        return 1
+    token = getattr(args, "token", None) or zero_address()
+    try:
+        portfolio_id = int(portfolio_id)
+        amount_wei = parse_wei(str(amount_wei))
+        if token != zero_address():
+            token = validate_address(token)
+        validate_portfolio_id(portfolio_id)
+        w3 = get_w3(rpc)
+        acct = get_signer_account(w3, pk)
+        contract = get_contract(w3, contract_addr)
+        tx = contract.functions.withdraw(portfolio_id, token, amount_wei).build_transaction({
+            "from": acct.address,
+            "gas": 200000,
+        })
+        tx["gas"] = w3.eth.estimate_gas(tx)
+        signed = acct.sign_transaction(tx)
+        tx_hash = w3.eth.send_raw_transaction(signed.raw_transaction)
+        receipt = w3.eth.wait_for_transaction_receipt(tx_hash)
+        if receipt["status"] != 1:
+            print("Transaction failed", file=sys.stderr)
+            return 1
+        print("Withdraw successful. Tx:", tx_hash.hex())
+    except Exception as e:
+        print("Error:", e, file=sys.stderr)
+        return 1
+    return 0
+
+# -----------------------------------------------------------------------------
+# Commands: close-portfolio
+# -----------------------------------------------------------------------------
+
+def cmd_close_portfolio(args: argparse.Namespace) -> int:
+    rpc = args.rpc_url or load_config().get("rpc_url", DEFAULT_RPC_URL)
+    contract_addr = args.contract or load_config().get("contract", DEFAULT_CONTRACT)
+    if not contract_addr:
+        print("Error: --contract or config required", file=sys.stderr)
+        return 1
+    pk = getattr(args, "private_key", None)
+    if not pk:
+        print("Error: --private-key required", file=sys.stderr)
+        return 1
+    portfolio_id = getattr(args, "portfolio_id", None)
+    if portfolio_id is None:
+        print("Error: --portfolio-id required", file=sys.stderr)
+        return 1
+    try:
+        portfolio_id = int(portfolio_id)
+        validate_portfolio_id(portfolio_id)
+        w3 = get_w3(rpc)
+        acct = get_signer_account(w3, pk)
+        contract = get_contract(w3, contract_addr)
+        tx = contract.functions.closePortfolio(portfolio_id).build_transaction({
+            "from": acct.address,
+            "gas": 150000,
+        })
+        tx["gas"] = w3.eth.estimate_gas(tx)
+        signed = acct.sign_transaction(tx)
+        tx_hash = w3.eth.send_raw_transaction(signed.raw_transaction)
+        receipt = w3.eth.wait_for_transaction_receipt(tx_hash)
+        if receipt["status"] != 1:
+            print("Transaction failed", file=sys.stderr)
+            return 1
+        print("Portfolio closed. Tx:", tx_hash.hex())
