@@ -593,3 +593,88 @@ def cmd_advisor_info(args: argparse.Namespace) -> int:
         print("  Fees earned:   ", format_wei(fees))
         print("  Registered at block:", reg_block)
     except Exception as e:
+        print("Error:", e, file=sys.stderr)
+        return 1
+    return 0
+
+# -----------------------------------------------------------------------------
+# Commands: constants, tier-names, fee-calc, version
+# -----------------------------------------------------------------------------
+
+def cmd_constants(args: argparse.Namespace) -> int:
+    print("WizardFinance constants (Babalon reference):")
+    print("  WF_BPS = 10000")
+    print("  WF_MAX_ADVISORS = 128")
+    print("  WF_MAX_PORTFOLIOS_PER_CLIENT = 24")
+    print("  WF_ADVISOR_FEE_BPS = 200")
+    print("  WF_PLATFORM_FEE_BPS = 50")
+    print("  WF_MIN_DEPOSIT = 0.01 ether")
+    print("  WF_MAX_DEPOSIT_SINGLE = 1000 ether")
+    print("  Tier minimums: Bronze 0.1, Silver 1, Gold 10, Platinum 100 (ether)")
+    return 0
+
+def cmd_tier_names(args: argparse.Namespace) -> int:
+    for k, v in BABALON_TIER_NAMES.items():
+        print(f"  {k}: {v}")
+    return 0
+
+def cmd_fee_calc(args: argparse.Namespace) -> int:
+    amount_str = getattr(args, "amount", None) or "1"
+    amount_wei = parse_wei(amount_str)
+    adv, plat, net = fee_breakdown(amount_wei)
+    print("Amount (wei):", amount_wei)
+    print("Advisor fee: ", adv, "(", format_wei(adv), ")")
+    print("Platform fee:", plat, "(", format_wei(plat), ")")
+    print("Net to client:", net, "(", format_wei(net), ")")
+    return 0
+
+def cmd_version(args: argparse.Namespace) -> int:
+    print(APP_NAME, BABALON_VERSION)
+    print("Contract:", CONTRACT_NAME)
+    return 0
+
+# -----------------------------------------------------------------------------
+# Demo and interactive
+# -----------------------------------------------------------------------------
+
+def cmd_demo(args: argparse.Namespace) -> int:
+    print("Babalon demo (no RPC):")
+    print("  Fee on 1 ETH:", fee_breakdown(ether_to_wei(1)))
+    print("  Tier names:", list(BABALON_TIER_NAMES.values()))
+    print("  Config path:", config_path())
+    return 0
+
+def cmd_interactive(args: argparse.Namespace) -> int:
+    print("Babalon interactive: use subcommands config, stats, list-advisors, list-portfolios, etc.")
+    return 0
+
+# -----------------------------------------------------------------------------
+# Main
+# -----------------------------------------------------------------------------
+
+def main() -> int:
+    parser = argparse.ArgumentParser(prog=APP_NAME, description="WizardFinance CLI client")
+    sub = parser.add_subparsers(dest="command", help="command")
+    # config
+    p_config = sub.add_parser("config", help="Show or save RPC and contract")
+    p_config.add_argument("--rpc-url", type=str, help="RPC URL")
+    p_config.add_argument("--contract", type=str, help="Contract address")
+    p_config.add_argument("--save", action="store_true", help="Save to config file")
+    p_config.set_defaults(func=cmd_config)
+    # register-advisor
+    p_ra = sub.add_parser("register-advisor", help="Register sender as advisor")
+    p_ra.add_argument("--rpc-url", type=str)
+    p_ra.add_argument("--private-key", type=str)
+    p_ra.add_argument("--contract", type=str)
+    p_ra.set_defaults(func=cmd_register_advisor)
+    # create-portfolio
+    p_cp = sub.add_parser("create-portfolio", help="Create portfolio for sender under advisor")
+    p_cp.add_argument("--rpc-url", type=str)
+    p_cp.add_argument("--private-key", type=str)
+    p_cp.add_argument("--contract", type=str)
+    p_cp.add_argument("--advisor-id", type=int, required=True)
+    p_cp.set_defaults(func=cmd_create_portfolio)
+    # deposit
+    p_dep = sub.add_parser("deposit", help="Deposit into portfolio (ETH or ERC20)")
+    p_dep.add_argument("--rpc-url", type=str)
+    p_dep.add_argument("--private-key", type=str)
