@@ -423,3 +423,88 @@ def cmd_close_portfolio(args: argparse.Namespace) -> int:
             print("Transaction failed", file=sys.stderr)
             return 1
         print("Portfolio closed. Tx:", tx_hash.hex())
+    except Exception as e:
+        print("Error:", e, file=sys.stderr)
+        return 1
+    return 0
+
+# -----------------------------------------------------------------------------
+# Commands: list-advisors
+# -----------------------------------------------------------------------------
+
+def cmd_list_advisors(args: argparse.Namespace) -> int:
+    rpc = args.rpc_url or load_config().get("rpc_url", DEFAULT_RPC_URL)
+    contract_addr = args.contract or load_config().get("contract", DEFAULT_CONTRACT)
+    if not contract_addr:
+        print("Error: --contract or config required", file=sys.stderr)
+        return 1
+    limit = getattr(args, "limit", None) or 50
+    try:
+        w3 = get_w3(rpc)
+        contract = get_contract(w3, contract_addr)
+        count = contract.functions.advisorCount().call()
+        if count == 0:
+            print("No advisors registered.")
+            return 0
+        print(f"Advisors (up to {min(limit, count)}):")
+        for i in range(1, min(count + 1, limit + 1)):
+            wallet, active, clients, fees, reg_block = contract.functions.getAdvisor(i).call()
+            print(format_advisor_line(i, wallet, active, clients, fees))
+    except Exception as e:
+        print("Error:", e, file=sys.stderr)
+        return 1
+    return 0
+
+# -----------------------------------------------------------------------------
+# Commands: list-portfolios
+# -----------------------------------------------------------------------------
+
+def cmd_list_portfolios(args: argparse.Namespace) -> int:
+    rpc = args.rpc_url or load_config().get("rpc_url", DEFAULT_RPC_URL)
+    contract_addr = args.contract or load_config().get("contract", DEFAULT_CONTRACT)
+    if not contract_addr:
+        print("Error: --contract or config required", file=sys.stderr)
+        return 1
+    limit = getattr(args, "limit", None) or 50
+    try:
+        w3 = get_w3(rpc)
+        contract = get_contract(w3, contract_addr)
+        count = contract.functions.portfolioCount().call()
+        if count == 0:
+            print("No portfolios.")
+            return 0
+        print(f"Portfolios (up to {min(limit, count)}):")
+        for i in range(1, min(count + 1, limit + 1)):
+            client, advisor_id, deposited, withdrawn, created_block, closed = contract.functions.getPortfolio(i).call()
+            print(format_portfolio_line(i, client, advisor_id, deposited, withdrawn, closed))
+    except Exception as e:
+        print("Error:", e, file=sys.stderr)
+        return 1
+    return 0
+
+# -----------------------------------------------------------------------------
+# Commands: stats
+# -----------------------------------------------------------------------------
+
+def cmd_stats(args: argparse.Namespace) -> int:
+    rpc = args.rpc_url or load_config().get("rpc_url", DEFAULT_RPC_URL)
+    contract_addr = args.contract or load_config().get("contract", DEFAULT_CONTRACT)
+    if not contract_addr:
+        print("Error: --contract or config required", file=sys.stderr)
+        return 1
+    try:
+        w3 = get_w3(rpc)
+        contract = get_contract(w3, contract_addr)
+        total_dep, total_with, total_fees, adv_count, port_count, paused = contract.functions.getGlobalStats().call()
+        print("Global stats (WizardFinance):")
+        print("  Total deposits:  ", format_wei(total_dep))
+        print("  Total withdrawn:", format_wei(total_with))
+        print("  Total fees:      ", format_wei(total_fees))
+        print("  Advisors:        ", adv_count)
+        print("  Portfolios:      ", port_count)
+        print("  Paused:          ", paused)
+    except Exception as e:
+        print("Error:", e, file=sys.stderr)
+        return 1
+    return 0
+
