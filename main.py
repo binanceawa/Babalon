@@ -933,3 +933,88 @@ def max_portfolios_per_client_cap() -> int:
     return 24
 
 
+# Sample output strings for documentation
+SAMPLE_STATS_OUTPUT = """
+Global stats (WizardFinance):
+  Total deposits:   10.500000 ETH
+  Total withdrawn: 2.000000 ETH
+  Total fees:       0.212500 ETH
+  Advisors:        3
+  Portfolios:      12
+  Paused:          False
+"""
+
+SAMPLE_PORTFOLIO_LINE = "  Portfolio #1  client=0x1234...  advisor=1  deposited=1.000000 ETH  withdrawn=0.000000 ETH  net=1.000000 ETH  [open]"
+SAMPLE_ADVISOR_LINE = "  Advisor #1  wallet=0xabcd...  active  clients=4  fees_earned=0.050000 ETH"
+
+
+def print_sample_outputs() -> None:
+    """Print sample CLI outputs for reference."""
+    print(SAMPLE_STATS_OUTPUT)
+    print(SAMPLE_PORTFOLIO_LINE)
+    print(SAMPLE_ADVISOR_LINE)
+
+
+def check_deposit_bounds(amount_wei: int) -> Tuple[bool, str]:
+    """Return (True, '') if amount in valid range else (False, reason)."""
+    min_w = TIER_BRONZE_MIN_WEI // 10  # 0.01 ether
+    max_w = 1000 * 10**18
+    if amount_wei < min_w:
+        return False, f"Below minimum deposit {format_wei(min_w)}"
+    if amount_wei > max_w:
+        return False, f"Above maximum single deposit {format_wei(max_w)}"
+    return True, ""
+
+
+def wei_to_gwei(wei: int) -> float:
+    """Convert wei to gwei."""
+    return wei / 1e9
+
+
+def gwei_to_wei(gwei: float) -> int:
+    """Convert gwei to wei."""
+    return int(gwei * 1e9)
+
+
+def format_gwei(gwei: float) -> str:
+    """Format gwei for display."""
+    return f"{gwei:.2f} Gwei"
+
+
+# Environment variable names used by Babalon
+ENV_RPC_URL = "BABALON_RPC_URL"
+ENV_CONTRACT = "BABALON_CONTRACT"
+
+
+def get_rpc_from_env() -> str:
+    """Return RPC URL from environment or default."""
+    return os.environ.get(ENV_RPC_URL, DEFAULT_RPC_URL)
+
+
+def get_contract_from_env() -> str:
+    """Return contract address from environment or default."""
+    return os.environ.get(ENV_CONTRACT, DEFAULT_CONTRACT)
+
+
+def ensure_config_dir() -> Path:
+    """Create config directory if needed; return path."""
+    p = config_path().parent
+    p.mkdir(parents=True, exist_ok=True)
+    return p
+
+
+def config_exists() -> bool:
+    """Return True if config file exists."""
+    return config_path().exists()
+
+
+def delete_config() -> bool:
+    """Remove config file; return True if removed."""
+    p = config_path()
+    if p.exists():
+        p.unlink()
+        return True
+    return False
+
+
+# Gas estimation defaults (for display only; actual tx uses estimate_gas)
