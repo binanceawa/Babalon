@@ -83,3 +83,88 @@ def load_config() -> dict:
     try:
         with open(p, "r", encoding="utf-8") as f:
             return json.load(f)
+    except Exception:
+        return {"rpc_url": DEFAULT_RPC_URL, "contract": DEFAULT_CONTRACT}
+
+def save_config(rpc_url: str, contract: str) -> None:
+    p = config_path()
+    p.parent.mkdir(parents=True, exist_ok=True)
+    with open(p, "w", encoding="utf-8") as f:
+        json.dump({"rpc_url": rpc_url, "contract": contract}, f, indent=2)
+
+# -----------------------------------------------------------------------------
+# Web3 helpers
+# -----------------------------------------------------------------------------
+
+def get_w3(rpc_url: str):
+    try:
+        from web3 import Web3
+        w3 = Web3(Web3.HTTPProvider(rpc_url))
+        if not w3.is_connected():
+            raise RuntimeError("Not connected to RPC")
+        return w3
+    except ImportError:
+        raise RuntimeError("Install web3: pip install web3")
+
+def get_contract(w3, address: str):
+    from web3 import Web3
+    return w3.eth.contract(address=Web3.to_checksum_address(address), abi=WIZARDFINANCE_ABI)
+
+def get_signer_account(w3, private_key: str):
+    from web3 import Web3
+    pk = private_key.strip()
+    if pk.startswith("0x"):
+        pk = pk[2:]
+    return w3.eth.account.from_key(pk)
+
+def normalize_address(addr: str) -> str:
+    from web3 import Web3
+    return Web3.to_checksum_address(addr)
+
+def zero_address() -> str:
+    return "0x0000000000000000000000000000000000000000"
+
+# -----------------------------------------------------------------------------
+# Formatting and display
+# -----------------------------------------------------------------------------
+
+def wei_to_ether(wei: int) -> float:
+    return wei / 1e18
+
+def ether_to_wei(eth: float) -> int:
+    return int(eth * 1e18)
+
+def format_wei(wei: int) -> str:
+    return f"{wei_to_ether(wei):.6f} ETH"
+
+def tier_name(tier: int) -> str:
+    return BABALON_TIER_NAMES.get(tier, "Unknown")
+
+def format_portfolio_line(portfolio_id: int, client: str, advisor_id: int, deposited: int, withdrawn: int, closed: bool) -> str:
+    net = deposited - withdrawn
+    status = "closed" if closed else "open"
+    return f"  Portfolio #{portfolio_id}  client={client[:10]}...  advisor={advisor_id}  deposited={format_wei(deposited)}  withdrawn={format_wei(withdrawn)}  net={format_wei(net)}  [{status}]"
+
+def format_advisor_line(advisor_id: int, wallet: str, active: bool, clients: int, fees: int) -> str:
+    act = "active" if active else "inactive"
+    return f"  Advisor #{advisor_id}  wallet={wallet[:10]}...  {act}  clients={clients}  fees_earned={format_wei(fees)}"
+
+# -----------------------------------------------------------------------------
+# Fee calculation (local mirror of contract BPS)
+# -----------------------------------------------------------------------------
+
+BPS = 10000
+ADVISOR_FEE_BPS = 200
+PLATFORM_FEE_BPS = 50
+
+def compute_advisor_fee(amount_wei: int) -> int:
+    return (amount_wei * ADVISOR_FEE_BPS) // BPS
+
+def compute_platform_fee(amount_wei: int) -> int:
+    return (amount_wei * PLATFORM_FEE_BPS) // BPS
+
+def compute_total_fee(amount_wei: int) -> int:
+    return compute_advisor_fee(amount_wei) + compute_platform_fee(amount_wei)
+
+def compute_net_after_fees(amount_wei: int) -> int:
+    return amount_wei - compute_total_fee(amount_wei)
