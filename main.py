@@ -848,3 +848,88 @@ def format_global_stats_json(total_dep: int, total_with: int, total_fees: int, a
         "total_deposits_eth": wei_to_ether(total_dep),
         "total_withdrawn_wei": total_with,
         "total_withdrawn_eth": wei_to_ether(total_with),
+        "total_fees_wei": total_fees,
+        "total_fees_eth": wei_to_ether(total_fees),
+        "advisor_count": advisors,
+        "portfolio_count": portfolios,
+        "paused": paused,
+    }, indent=2)
+
+
+def format_portfolio_json(portfolio_id: int, client: str, advisor_id: int, deposited: int, withdrawn: int, created_block: int, closed: bool) -> str:
+    """Return JSON string for one portfolio."""
+    return json.dumps({
+        "portfolio_id": portfolio_id,
+        "client": client,
+        "advisor_id": advisor_id,
+        "total_deposited_wei": deposited,
+        "total_deposited_eth": wei_to_ether(deposited),
+        "total_withdrawn_wei": withdrawn,
+        "total_withdrawn_eth": wei_to_ether(withdrawn),
+        "created_at_block": created_block,
+        "closed": closed,
+        "net_wei": deposited - withdrawn,
+    }, indent=2)
+
+
+def format_advisor_json(advisor_id: int, wallet: str, active: bool, total_clients: int, total_fees: int, registered_block: int) -> str:
+    """Return JSON string for one advisor."""
+    return json.dumps({
+        "advisor_id": advisor_id,
+        "wallet": wallet,
+        "active": active,
+        "total_clients": total_clients,
+        "total_fees_earned_wei": total_fees,
+        "total_fees_earned_eth": wei_to_ether(total_fees),
+        "registered_at_block": registered_block,
+    }, indent=2)
+
+
+# Reference: WizardFinance tier thresholds (wei)
+TIER_BRONZE_MIN_WEI = 100000000000000000
+TIER_SILVER_MIN_WEI = 1000000000000000000
+TIER_GOLD_MIN_WEI = 10000000000000000000
+TIER_PLATINUM_MIN_WEI = 100000000000000000000
+
+# Reference: fee basis points
+WF_BPS_REF = 10000
+WF_ADVISOR_FEE_BPS_REF = 200
+WF_PLATFORM_FEE_BPS_REF = 50
+WF_TOTAL_FEE_BPS_REF = WF_ADVISOR_FEE_BPS_REF + WF_PLATFORM_FEE_BPS_REF
+
+
+def advisor_fee_percent() -> float:
+    """Advisor fee in percent (2.0 for 200 bps)."""
+    return (WF_ADVISOR_FEE_BPS_REF / WF_BPS_REF) * 100
+
+
+def platform_fee_percent() -> float:
+    """Platform fee in percent (0.5 for 50 bps)."""
+    return (WF_PLATFORM_FEE_BPS_REF / WF_BPS_REF) * 100
+
+
+def total_fee_percent() -> float:
+    """Total fee in percent (2.5 for 250 bps)."""
+    return (WF_TOTAL_FEE_BPS_REF / WF_BPS_REF) * 100
+
+
+def min_deposit_ether() -> float:
+    """Minimum deposit in ether (0.01)."""
+    return 0.01
+
+
+def max_deposit_ether() -> float:
+    """Maximum single deposit in ether (1000)."""
+    return 1000.0
+
+
+def max_advisors_cap() -> int:
+    """Maximum number of advisors (128)."""
+    return 128
+
+
+def max_portfolios_per_client_cap() -> int:
+    """Maximum portfolios per client (24)."""
+    return 24
+
+
