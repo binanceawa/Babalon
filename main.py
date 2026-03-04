@@ -253,3 +253,88 @@ def cmd_register_advisor(args: argparse.Namespace) -> int:
     return 0
 
 # -----------------------------------------------------------------------------
+# Commands: create-portfolio
+# -----------------------------------------------------------------------------
+
+def cmd_create_portfolio(args: argparse.Namespace) -> int:
+    rpc = args.rpc_url or load_config().get("rpc_url", DEFAULT_RPC_URL)
+    contract_addr = args.contract or load_config().get("contract", DEFAULT_CONTRACT)
+    if not contract_addr:
+        print("Error: --contract or config required", file=sys.stderr)
+        return 1
+    pk = getattr(args, "private_key", None)
+    if not pk:
+        print("Error: --private-key required", file=sys.stderr)
+        return 1
+    advisor_id = getattr(args, "advisor_id", None)
+    if advisor_id is None:
+        print("Error: --advisor-id required", file=sys.stderr)
+        return 1
+    try:
+        validate_advisor_id(int(advisor_id))
+        w3 = get_w3(rpc)
+        acct = get_signer_account(w3, pk)
+        contract = get_contract(w3, contract_addr)
+        tx = contract.functions.createPortfolio(int(advisor_id)).build_transaction({
+            "from": acct.address,
+            "gas": 200000,
+        })
+        tx["gas"] = w3.eth.estimate_gas(tx)
+        signed = acct.sign_transaction(tx)
+        tx_hash = w3.eth.send_raw_transaction(signed.raw_transaction)
+        receipt = w3.eth.wait_for_transaction_receipt(tx_hash)
+        if receipt["status"] != 1:
+            print("Transaction failed", file=sys.stderr)
+            return 1
+        portfolio_count = contract.functions.portfolioCount().call()
+        print("Portfolio created. Portfolio ID:", portfolio_count)
+    except Exception as e:
+        print("Error:", e, file=sys.stderr)
+        return 1
+    return 0
+
+# -----------------------------------------------------------------------------
+# Commands: deposit
+# -----------------------------------------------------------------------------
+
+def cmd_deposit(args: argparse.Namespace) -> int:
+    rpc = args.rpc_url or load_config().get("rpc_url", DEFAULT_RPC_URL)
+    contract_addr = args.contract or load_config().get("contract", DEFAULT_CONTRACT)
+    if not contract_addr:
+        print("Error: --contract or config required", file=sys.stderr)
+        return 1
+    pk = getattr(args, "private_key", None)
+    if not pk:
+        print("Error: --private-key required", file=sys.stderr)
+        return 1
+    portfolio_id = getattr(args, "portfolio_id", None)
+    amount_wei = getattr(args, "amount_wei", None)
+    if portfolio_id is None or amount_wei is None:
+        print("Error: --portfolio-id and --amount-wei required", file=sys.stderr)
+        return 1
+    token = getattr(args, "token", None) or zero_address()
+    try:
+        portfolio_id = int(portfolio_id)
+        amount_wei = parse_wei(str(amount_wei))
+        if token != zero_address():
+            token = validate_address(token)
+        validate_portfolio_id(portfolio_id)
+        w3 = get_w3(rpc)
+        acct = get_signer_account(w3, pk)
+        contract = get_contract(w3, contract_addr)
+        value = amount_wei if token == zero_address() else 0
+        tx = contract.functions.deposit(portfolio_id, token, amount_wei).build_transaction({
+            "from": acct.address,
+            "value": value,
+            "gas": 300000,
+        })
+        tx["gas"] = w3.eth.estimate_gas(tx)
+        signed = acct.sign_transaction(tx)
+        tx_hash = w3.eth.send_raw_transaction(signed.raw_transaction)
+        receipt = w3.eth.wait_for_transaction_receipt(tx_hash)
+        if receipt["status"] != 1:
+            print("Transaction failed", file=sys.stderr)
+            return 1
+        print("Deposit successful. Tx:", tx_hash.hex())
+    except Exception as e:
+        print("Error:", e, file=sys.stderr)
