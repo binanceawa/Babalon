@@ -1273,3 +1273,88 @@ def short_address(addr: str, prefix_len: int = 6, suffix_len: int = 4) -> str:
 
 def format_tx_hash(tx_hash) -> str:
     """Format transaction hash for display (hex string)."""
+    if hasattr(tx_hash, "hex"):
+        return tx_hash.hex()
+    return str(tx_hash)
+
+
+# Block number helpers
+def block_number_from_receipt(receipt) -> int:
+    """Extract block number from transaction receipt."""
+    return receipt.get("blockNumber", 0) if receipt else 0
+
+
+def gas_used_from_receipt(receipt) -> int:
+    """Extract gas used from transaction receipt."""
+    return receipt.get("gasUsed", 0) if receipt else 0
+
+
+# Retry / backoff (optional; not used by default)
+def linear_backoff(attempt: int, base_delay: float = 1.0, max_delay: float = 30.0) -> float:
+    """Return delay in seconds for given attempt (0-indexed)."""
+    delay = base_delay * (attempt + 1)
+    return min(delay, max_delay)
+
+
+# Summary one-liners for logging
+def one_line_portfolio(pid: int, client: str, advisor_id: int, net_wei: int, closed: bool) -> str:
+    """Single line summary for portfolio."""
+    return f"Portfolio#{pid} client={short_address(client)} advisor={advisor_id} net={format_wei(net_wei)} closed={closed}"
+
+
+def one_line_advisor(aid: int, wallet: str, active: bool, clients: int) -> str:
+    """Single line summary for advisor."""
+    return f"Advisor#{aid} wallet={short_address(wallet)} active={active} clients={clients}"
+
+
+# Defaults for optional args (for programmatic use)
+def default_rpc() -> str:
+    return DEFAULT_RPC_URL
+
+
+def default_contract() -> str:
+    return DEFAULT_CONTRACT
+
+
+def default_gas_limit(cmd: str) -> int:
+    """Return default gas limit for command."""
+    d = gas_limits_reference()
+    return d.get(cmd, 200000)
+
+
+# Validation: address format
+def is_checksum_address(addr: str) -> bool:
+    """Return True if address looks like EIP-55 checksummed (has mixed case)."""
+    if not addr or len(addr) != 42 or not addr.startswith("0x"):
+        return False
+    rest = addr[2:]
+    return rest != rest.lower() and rest != rest.upper()
+
+
+# Bytes and hex
+def bytes_to_hex(b: bytes) -> str:
+    return "0x" + b.hex()
+
+
+def hex_to_bytes(s: str) -> bytes:
+    s = s.strip().replace("0x", "")
+    return bytes.fromhex(s)
+
+
+# Numeric formatting for very large wei
+def format_wei_scientific(wei: int) -> str:
+    """Format wei in scientific notation if very large."""
+    if wei >= 10**24:
+        return f"{wei / 1e18:.2e} ETH"
+    return format_wei(wei)
+
+
+# Placeholder for future: EIP-712 typed data (WizardFinance uses typehashes)
+def domain_separator_name() -> str:
+    return "WizardFinance"
+
+
+def domain_separator_version() -> str:
+    return "1"
+
+
