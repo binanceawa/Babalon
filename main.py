@@ -678,3 +678,88 @@ def main() -> int:
     p_dep = sub.add_parser("deposit", help="Deposit into portfolio (ETH or ERC20)")
     p_dep.add_argument("--rpc-url", type=str)
     p_dep.add_argument("--private-key", type=str)
+    p_dep.add_argument("--contract", type=str)
+    p_dep.add_argument("--portfolio-id", type=int, required=True)
+    p_dep.add_argument("--token", type=str, default=zero_address(), help="Token address or 0 for ETH")
+    p_dep.add_argument("--amount-wei", type=str, required=True)
+    p_dep.set_defaults(func=cmd_deposit)
+    # withdraw
+    p_w = sub.add_parser("withdraw", help="Withdraw from portfolio")
+    p_w.add_argument("--rpc-url", type=str)
+    p_w.add_argument("--private-key", type=str)
+    p_w.add_argument("--contract", type=str)
+    p_w.add_argument("--portfolio-id", type=int, required=True)
+    p_w.add_argument("--token", type=str, default=zero_address())
+    p_w.add_argument("--amount-wei", type=str, required=True)
+    p_w.set_defaults(func=cmd_withdraw)
+    # close-portfolio
+    p_cl = sub.add_parser("close-portfolio", help="Close portfolio")
+    p_cl.add_argument("--rpc-url", type=str)
+    p_cl.add_argument("--private-key", type=str)
+    p_cl.add_argument("--contract", type=str)
+    p_cl.add_argument("--portfolio-id", type=int, required=True)
+    p_cl.set_defaults(func=cmd_close_portfolio)
+    # list-advisors
+    p_la = sub.add_parser("list-advisors", help="List advisors")
+    p_la.add_argument("--rpc-url", type=str)
+    p_la.add_argument("--contract", type=str)
+    p_la.add_argument("--limit", type=int, default=50)
+    p_la.set_defaults(func=cmd_list_advisors)
+    # list-portfolios
+    p_lp = sub.add_parser("list-portfolios", help="List portfolios")
+    p_lp.add_argument("--rpc-url", type=str)
+    p_lp.add_argument("--contract", type=str)
+    p_lp.add_argument("--limit", type=int, default=50)
+    p_lp.set_defaults(func=cmd_list_portfolios)
+    # stats
+    p_st = sub.add_parser("stats", help="Global stats")
+    p_st.add_argument("--rpc-url", type=str)
+    p_st.add_argument("--contract", type=str)
+    p_st.set_defaults(func=cmd_stats)
+    # client-stats
+    p_cs = sub.add_parser("client-stats", help="Client stats by address")
+    p_cs.add_argument("--rpc-url", type=str)
+    p_cs.add_argument("--contract", type=str)
+    p_cs.add_argument("--address", type=str, required=True)
+    p_cs.set_defaults(func=cmd_client_stats)
+    # portfolio-info
+    p_pi = sub.add_parser("portfolio-info", help="Portfolio details")
+    p_pi.add_argument("--rpc-url", type=str)
+    p_pi.add_argument("--contract", type=str)
+    p_pi.add_argument("--portfolio-id", type=int, required=True)
+    p_pi.set_defaults(func=cmd_portfolio_info)
+    # advisor-info
+    p_ai = sub.add_parser("advisor-info", help="Advisor details")
+    p_ai.add_argument("--rpc-url", type=str)
+    p_ai.add_argument("--contract", type=str)
+    p_ai.add_argument("--advisor-id", type=int, required=True)
+    p_ai.set_defaults(func=cmd_advisor_info)
+    # constants, tier-names, fee-calc, version, demo, interactive
+    sub.add_parser("constants").set_defaults(func=cmd_constants)
+    p_fee = sub.add_parser("fee-calc", help="Compute fees for amount")
+    p_fee.add_argument("--amount", type=str, default="1000000000000000000")
+    p_fee.set_defaults(func=cmd_fee_calc)
+    sub.add_parser("tier-names").set_defaults(func=cmd_tier_names)
+    sub.add_parser("version").set_defaults(func=cmd_version)
+    sub.add_parser("demo").set_defaults(func=cmd_demo)
+    sub.add_parser("interactive").set_defaults(func=cmd_interactive)
+    args = parser.parse_args()
+    if not args.command or not hasattr(args, "func"):
+        parser.print_help()
+        return 0
+    return args.func(args)
+
+if __name__ == "__main__":
+    sys.exit(main())
+
+
+# =============================================================================
+# EXTENDED HELPERS AND REFERENCE (Babalon — WizardFinance client)
+# =============================================================================
+#
+# The following sections provide additional utilities, reference data, and
+# batch/display helpers used by the CLI or by external scripts that import
+# this module. Contract constants are aligned with WizardFinance.sol.
+# =============================================================================
+
+def get_tier_from_net_wei(net_wei: int) -> int:
