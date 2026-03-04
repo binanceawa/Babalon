@@ -1018,3 +1018,88 @@ def delete_config() -> bool:
 
 
 # Gas estimation defaults (for display only; actual tx uses estimate_gas)
+DEFAULT_GAS_REGISTER_ADVISOR = 200000
+DEFAULT_GAS_CREATE_PORTFOLIO = 200000
+DEFAULT_GAS_DEPOSIT = 300000
+DEFAULT_GAS_WITHDRAW = 200000
+DEFAULT_GAS_CLOSE_PORTFOLIO = 150000
+
+
+def gas_limits_reference() -> dict:
+    """Return dict of command -> default gas limit."""
+    return {
+        "register_advisor": DEFAULT_GAS_REGISTER_ADVISOR,
+        "create_portfolio": DEFAULT_GAS_CREATE_PORTFOLIO,
+        "deposit": DEFAULT_GAS_DEPOSIT,
+        "withdraw": DEFAULT_GAS_WITHDRAW,
+        "close_portfolio": DEFAULT_GAS_CLOSE_PORTFOLIO,
+    }
+
+
+# Chain ID helpers (for future use with EIP-712)
+CHAIN_ID_MAINNET = 1
+CHAIN_ID_GOERLI = 5
+CHAIN_ID_SEPOLIA = 11155111
+CHAIN_ID_LOCAL = 1337
+
+
+def chain_id_name(chain_id: int) -> str:
+    """Return human-readable chain name."""
+    if chain_id == CHAIN_ID_MAINNET:
+        return "mainnet"
+    if chain_id == CHAIN_ID_GOERLI:
+        return "goerli"
+    if chain_id == CHAIN_ID_SEPOLIA:
+        return "sepolia"
+    if chain_id == CHAIN_ID_LOCAL:
+        return "local"
+    return f"chain_{chain_id}"
+
+
+# Token address constants (common; do not use for mainnet without verification)
+ZERO_ADDRESS = "0x0000000000000000000000000000000000000000"
+
+
+def is_zero_address(addr: str) -> bool:
+    """Return True if address is the zero address."""
+    return addr is None or (addr.strip().lower() in ("0x0", "0x" + "0" * 40, ZERO_ADDRESS.lower()))
+
+
+def is_eth_deposit(token: str) -> bool:
+    """Return True if token is native ETH (zero address)."""
+    return is_zero_address(token)
+
+
+# Extended display: table-style portfolio list
+def table_header_portfolios() -> str:
+    """Return table header for portfolio list."""
+    return "  {:<12} {:<14} {:<8} {:<16} {:<16} {:<12} {:<6}".format(
+        "Portfolio", "Client", "Advisor", "Deposited", "Withdrawn", "Net", "Status"
+    )
+
+
+def table_row_portfolio(pid: int, client_short: str, advisor_id: int, dep_eth: float, with_eth: float, closed: bool) -> str:
+    """Return one table row for portfolio."""
+    net = dep_eth - with_eth
+    status = "closed" if closed else "open"
+    return "  {:<12} {:<14} {:<8} {:<16.4f} {:<16.4f} {:<12.4f} {:<6}".format(
+        pid, client_short[:12], advisor_id, dep_eth, with_eth, net, status
+    )
+
+
+# Extended display: table-style advisor list
+def table_header_advisors() -> str:
+    """Return table header for advisor list."""
+    return "  {:<10} {:<14} {:<8} {:<8} {:<16}".format("Advisor", "Wallet", "Active", "Clients", "Fees (ETH)")
+
+
+def table_row_advisor(aid: int, wallet_short: str, active: bool, clients: int, fees_eth: float) -> str:
+    """Return one table row for advisor."""
+    act = "yes" if active else "no"
+    return "  {:<10} {:<14} {:<8} {:<8} {:<16.4f}".format(aid, wallet_short[:12], act, clients, fees_eth)
+
+
+# Error messages (centralized)
+ERR_NO_CONTRACT = "Error: --contract or config required"
+ERR_NO_PRIVATE_KEY = "Error: --private-key required"
+ERR_NO_PORTFOLIO_ID = "Error: --portfolio-id required"
